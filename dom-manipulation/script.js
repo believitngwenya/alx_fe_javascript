@@ -1,4 +1,4 @@
-// Quote array with initial data
+        // Quote array with initial data
         let quotes = [];
         let selectedCategory = 'all';
         let serverQuotes = [];
@@ -7,6 +7,7 @@
         let lastServerFetchTime = null;
         let periodicSyncInterval = null;
         let syncIntervalMinutes = 5; // Default interval
+        let updateAvailable = false;
         
         // DOM elements
         const quoteDisplay = document.getElementById('quoteDisplay');
@@ -228,7 +229,8 @@
                 showNotification('Quote Added', `"${text.substring(0, 40)}..." added successfully!`, 'success');
                 addToSyncLog(`Added new quote: "${text.substring(0, 20)}..."`);
             } else {
-                showNotification('Validation Error', 'Please fill in both fields.', 'warning');
+                // Using alert for form validation as requested
+                alert('Please fill in both fields.');
             }
         }
         
@@ -257,6 +259,7 @@
         
         // Clear all quotes from storage
         function clearAllQuotes() {
+            // Using alert for confirmation as requested
             if (confirm('Are you sure you want to delete all quotes? This cannot be undone.')) {
                 quotes = [];
                 localStorage.removeItem('quotes');
@@ -447,8 +450,12 @@
             });
             
             if (updatesFound > 0) {
+                updateAvailable = true;
                 showNotification('Updates Available', `Server has ${updatesFound} updates (${newQuotes.length} new quotes)`, 'info');
                 addToSyncLog(`Server updates detected: ${updatesFound} changes available`);
+                
+                // Add visual indicator to sync button
+                syncQuotesBtn.innerHTML = `<i class="fas fa-sync"></i> Sync Quotes <span class="update-indicator">${updatesFound}</span>`;
             }
         }
         
@@ -592,6 +599,10 @@
                 
                 // Show the specific notification requested
                 showNotification('Sync Complete', 'Quotes synced with server!', 'success');
+                
+                // Reset update indicator
+                updateAvailable = false;
+                syncQuotesBtn.innerHTML = '<i class="fas fa-sync"></i> Sync Quotes';
                 
                 addToSyncLog(`Sync completed: Added ${addedCount}, Updated ${updatedCount}, Sent ${sentToServer}`);
                 
