@@ -1,6 +1,9 @@
         // Quote array with initial data
         let quotes = [];
         let selectedCategory = 'all';
+        let lastSyncTime = null;
+        let syncInterval = null;
+        let conflictsResolved = 0;
         
         // DOM elements
         const quoteDisplay = document.getElementById('quoteDisplay');
@@ -8,18 +11,25 @@
         const addQuoteBtn = document.getElementById('addQuoteBtn');
         const formContainer = document.getElementById('formContainer');
         const exportBtn = document.getElementById('exportBtn');
-        const importFile = document.getElementById('importFile');
         const clearStorageBtn = document.getElementById('clearStorageBtn');
         const submitQuoteBtn = document.getElementById('submitQuoteBtn');
         const cancelBtn = document.getElementById('cancelBtn');
         const localStorageContent = document.getElementById('localStorageContent');
-        const sessionStorageContent = document.getElementById('sessionStorageContent');
-        const categoryInfo = document.getElementById('categoryInfo');
+        const serverStorageContent = document.getElementById('serverStorageContent');
         const categoryFilter = document.getElementById('categoryFilter');
         const totalQuoteCount = document.getElementById('totalQuoteCount');
         const filteredCount = document.getElementById('filteredCount');
         const currentFilterSpan = document.getElementById('currentFilter');
-        const quickCategoryFilters = document.getElementById('quickCategoryFilters');
+        const syncStatus = document.getElementById('syncStatus');
+        const lastSync = document.getElementById('lastSync');
+        const serverVersion = document.getElementById('serverVersion');
+        const conflictsResolvedSpan = document.getElementById('conflictsResolved');
+        const syncNowBtn = document.getElementById('syncNowBtn');
+        const forceSyncBtn = document.getElementById('forceSyncBtn');
+        const conflictNotification = document.getElementById('conflictNotification');
+        const conflictDetails = document.getElementById('conflictDetails');
+        const resolveConflictBtn = document.getElementById('resolveConflictBtn');
+        const syncLog = document.getElementById('syncLog');
         
         // Initialize the application
         document.addEventListener('DOMContentLoaded', () => {
@@ -28,8 +38,13 @@
             populateCategories();
             updateStorageDisplays();
             setupEventListeners();
-            updateCategoryInfo();
             updateQuoteCount();
+            
+            // Start periodic syncing
+            startSyncInterval();
+            
+            // Add initial sync log
+            addToSyncLog('Application initialized');
         });
         
         // Load quotes from localStorage
@@ -61,15 +76,11 @@
         // Get default quotes if none are stored
         function getDefaultQuotes() {
             return [
-                { text: "The only way to do great work is to love what you do.", category: "Inspiration" },
-                { text: "Innovation distinguishes between a leader and a follower.", category: "Business" },
-                { text: "Life is what happens when you're busy making other plans.", category: "Life" },
-                { text: "The future belongs to those who believe in the beauty of their dreams.", category: "Motivation" },
-                { text: "Be the change that you wish to see in the world.", category: "Wisdom" },
-                { text: "Success is not final, failure is not fatal: It is the courage to continue that counts.", category: "Perseverance" },
-                { text: "In three words I can sum up everything I've learned about life: it goes on.", category: "Life" },
-                { text: "Don't watch the clock; do what it does. Keep going.", category: "Motivation" },
-                { text: "The only impossible journey is the one you never begin.", category: "Inspiration" }
+                { id: 1, text: "The only way to do great work is to love what you do.", category: "Inspiration", version: 1 },
+                { id: 2, text: "Innovation distinguishes between a leader and a follower.", category: "Business", version: 1 },
+                { id: 3, text: "Life is what happens when you're busy making other plans.", category: "Life", version: 1 },
+                { id: 4, text: "The future belongs to those who believe in the beauty of their dreams.", category: "Motivation", version: 1 },
+                { id: 5, text: "Be the change that you wish to see in the world.", category: "Wisdom", version: 1 }
             ];
         }
         
@@ -88,47 +99,20 @@
                 categoryFilter.remove(1);
             }
             
-            // Clear quick filter buttons
-            quickCategoryFilters.innerHTML = '';
-            
-            // Create "All" quick filter button
-            const allButton = document.createElement('button');
-            allButton.className = `filter-btn ${selectedCategory === 'all' ? 'active' : ''}`;
-            allButton.innerHTML = '<i class="fas fa-layer-group"></i> All';
-            allButton.addEventListener('click', () => {
-                categoryFilter.value = 'all';
-                filterQuotes();
-            });
-            quickCategoryFilters.appendChild(allButton);
-            
             // Extract unique categories
             const categories = [...new Set(quotes.map(quote => quote.category))];
             categories.sort();
             
-            // Add options to dropdown and create quick filter buttons
+            // Add options
             categories.forEach(category => {
-                // Add to dropdown
                 const option = document.createElement('option');
                 option.value = category;
                 option.textContent = category;
                 categoryFilter.appendChild(option);
-                
-                // Create quick filter button
-                const button = document.createElement('button');
-                button.className = `filter-btn ${selectedCategory === category ? 'active' : ''}`;
-                button.innerHTML = `<i class="fas fa-tag"></i> ${category}`;
-                button.addEventListener('click', () => {
-                    categoryFilter.value = category;
-                    filterQuotes();
-                });
-                quickCategoryFilters.appendChild(button);
             });
             
             // Set the selected category
             categoryFilter.value = selectedCategory;
-            
-            // Update category info
-            updateCategoryInfo();
         }
         
         // Filter quotes based on selected category
@@ -137,20 +121,10 @@
             localStorage.setItem('quoteFilter', selectedCategory);
             currentFilterSpan.textContent = selectedCategory === 'all' ? 'All Categories' : selectedCategory;
             
-            // Update active state for quick filter buttons
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
+            // Update filtered count display
             if (selectedCategory === 'all') {
-                document.querySelector('.filter-btn:first-child').classList.add('active');
                 filteredCount.textContent = '';
             } else {
-                const activeButton = [...document.querySelectorAll('.filter-btn')].find(
-                    btn => btn.textContent.includes(selectedCategory)
-                );
-                if (activeButton) activeButton.classList.add('active');
-                
                 const count = quotes.filter(q => q.category === selectedCategory).length;
                 filteredCount.innerHTML = ` | Showing: <span class="highlight">${count}</span>`;
             }
@@ -194,7 +168,7 @@
             quoteDisplay.innerHTML = `
                 <blockquote>${quote.text}</blockquote>
                 <cite>— ${quote.category}</cite>
-                <div class="category-tag">${quote.category}</div>
+                <div class="category-tag">ID: ${quote.id} | Version: ${quote.version}</div>
             `;
         }
         
@@ -226,7 +200,17 @@
             const category = document.getElementById('quoteCategory').value.trim();
             
             if (text && category) {
-                quotes.push({ text, category });
+                // Generate unique ID and version
+                const newId = quotes.length > 0 ? Math.max(...quotes.map(q => q.id)) + 1 : 1;
+                
+                quotes.push({ 
+                    id: newId, 
+                    text, 
+                    category, 
+                    version: 1,
+                    lastUpdated: new Date().toISOString()
+                });
+                
                 saveQuotesToLocalStorage();
                 formContainer.style.display = 'none';
                 document.getElementById('quoteText').value = '';
@@ -237,6 +221,7 @@
                 showRandomQuote();
                 
                 alert('Quote added successfully!');
+                addToSyncLog(`Added new quote: "${text.substring(0, 20)}..."`);
             } else {
                 alert('Please fill in both fields.');
             }
@@ -260,67 +245,8 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-        }
-        
-        // Import quotes from JSON file
-        function importQuotes(event) {
-            const file = event.target.files[0];
-            if (!file) return;
             
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedData = JSON.parse(e.target.result);
-                    
-                    // Validate imported data structure
-                    if (!Array.isArray(importedData)) {
-                        alert('Invalid format: The file should contain an array of quotes.');
-                        return;
-                    }
-                    
-                    let validQuotes = [];
-                    let invalidCount = 0;
-                    
-                    for (const item of importedData) {
-                        // Validate quote structure
-                        if (item && typeof item.text === 'string' && item.text.trim() !== '' && 
-                            typeof item.category === 'string' && item.category.trim() !== '') {
-                            
-                            validQuotes.push({
-                                text: item.text.trim(),
-                                category: item.category.trim()
-                            });
-                        } else {
-                            invalidCount++;
-                        }
-                    }
-                    
-                    if (validQuotes.length === 0) {
-                        alert('No valid quotes found in the file.');
-                        return;
-                    }
-                    
-                    // Add valid quotes to collection
-                    quotes.push(...validQuotes);
-                    saveQuotesToLocalStorage();
-                    populateCategories();
-                    showRandomQuote();
-                    
-                    // Provide detailed import report
-                    let message = `Successfully imported ${validQuotes.length} quotes!`;
-                    if (invalidCount > 0) {
-                        message += `\n${invalidCount} invalid items were skipped.`;
-                    }
-                    alert(message);
-                    
-                } catch (error) {
-                    alert('Error parsing JSON file: ' + error.message);
-                }
-            };
-            reader.readAsText(file);
-            
-            // Reset the input to allow importing the same file again
-            event.target.value = '';
+            addToSyncLog('Exported quotes to JSON file');
         }
         
         // Clear all quotes from storage
@@ -337,6 +263,8 @@
                 populateCategories();
                 updateStorageDisplays();
                 updateQuoteCount();
+                
+                addToSyncLog('Cleared all quotes');
             }
         }
         
@@ -352,40 +280,8 @@
                 localStorageContent.textContent = 'No quotes in local storage';
             }
             
-            // Session storage display
-            const lastQuote = sessionStorage.getItem('lastQuote');
-            if (lastQuote) {
-                try {
-                    const quoteObj = JSON.parse(lastQuote);
-                    const lastViewed = sessionStorage.getItem('lastViewed') || 'Unknown';
-                    sessionStorageContent.innerHTML = `<strong>Last viewed:</strong>\n"${quoteObj.text}"\n<em>(${quoteObj.category})</em>\n\nViewed: ${lastViewed}`;
-                } catch (e) {
-                    sessionStorageContent.textContent = 'Error reading last quote';
-                }
-            } else {
-                sessionStorageContent.textContent = 'No recent quote in session storage';
-            }
-        }
-        
-        // Update category information
-        function updateCategoryInfo() {
-            const categories = [...new Set(quotes.map(quote => quote.category))];
-            categories.sort();
-            
-            if (categories.length === 0) {
-                categoryInfo.innerHTML = '<p>No categories available</p>';
-                return;
-            }
-            
-            let infoHTML = `<p><strong>${categories.length} categories:</strong></p><ul>`;
-            
-            categories.forEach(category => {
-                const count = quotes.filter(q => q.category === category).length;
-                infoHTML += `<li>${category} <span class="highlight">(${count})</span></li>`;
-            });
-            
-            infoHTML += '</ul>';
-            categoryInfo.innerHTML = infoHTML;
+            // Server storage display
+            serverStorageContent.innerHTML = `<strong>Simulated server storage</strong>\nQuotes are synced periodically`;
         }
         
         // Update quote count display
@@ -412,7 +308,138 @@
                 document.getElementById('quoteCategory').value = '';
             });
             exportBtn.addEventListener('click', exportQuotes);
-            importFile.addEventListener('change', importQuotes);
             clearStorageBtn.addEventListener('click', clearAllQuotes);
             categoryFilter.addEventListener('change', filterQuotes);
+            syncNowBtn.addEventListener('click', syncWithServer);
+            forceSyncBtn.addEventListener('click', () => syncWithServer(true));
+            resolveConflictBtn.addEventListener('click', resolveConflicts);
+        }
+        
+        // Start periodic syncing
+        function startSyncInterval() {
+            if (syncInterval) clearInterval(syncInterval);
+            
+            syncInterval = setInterval(() => {
+                syncWithServer();
+            }, 30000); // Sync every 30 seconds
+            
+            addToSyncLog('Started periodic sync (every 30 seconds)');
+        }
+        
+        // Simulate server synchronization
+        function syncWithServer(force = false) {
+            // Show syncing status
+            syncStatus.textContent = 'Syncing...';
+            syncStatus.className = 'status-value status-warning';
+            
+            addToSyncLog('Starting server synchronization...');
+            
+            // Simulate network delay
+            setTimeout(() => {
+                try {
+                    // Simulate server response
+                    const serverQuotes = [
+                        { id: 1, text: "The only way to do great work is to love what you do.", category: "Inspiration", version: 1 },
+                        { id: 2, text: "Innovation distinguishes between a leader and a follower.", category: "Business", version: 1 },
+                        { id: 3, text: "Life is what happens when you're busy making other plans.", category: "Life", version: 1 },
+                        { id: 4, text: "The future belongs to those who believe in the beauty of their dreams.", category: "Motivation", version: 1 },
+                        { id: 5, text: "Be the change that you wish to see in the world.", category: "Wisdom", version: 1 },
+                        { id: 6, text: "The greatest glory in living lies not in never falling, but in rising every time we fall.", category: "Perseverance", version: 2 },
+                        { id: 7, text: "The way to get started is to quit talking and begin doing.", category: "Action", version: 1 }
+                    ];
+                    
+                    // Simulate conflicts
+                    const conflicts = [];
+                    
+                    // Merge server quotes with local quotes
+                    serverQuotes.forEach(serverQuote => {
+                        const localQuote = quotes.find(q => q.id === serverQuote.id);
+                        
+                        if (localQuote) {
+                            // Check for conflict
+                            if (localQuote.version !== serverQuote.version && 
+                                localQuote.text !== serverQuote.text) {
+                                conflicts.push({
+                                    id: serverQuote.id,
+                                    serverText: serverQuote.text,
+                                    serverCategory: serverQuote.category,
+                                    localText: localQuote.text,
+                                    localCategory: localQuote.category
+                                });
+                                
+                                // Resolve conflict by using server version
+                                localQuote.text = serverQuote.text;
+                                localQuote.category = serverQuote.category;
+                                localQuote.version = serverQuote.version;
+                                conflictsResolved++;
+                            } else if (serverQuote.version > localQuote.version) {
+                                // Update local with server version
+                                localQuote.text = serverQuote.text;
+                                localQuote.category = serverQuote.category;
+                                localQuote.version = serverQuote.version;
+                            }
+                        } else {
+                            // Add new quote from server
+                            quotes.push(serverQuote);
+                        }
+                    });
+                    
+                    // Update UI and storage
+                    saveQuotesToLocalStorage();
+                    populateCategories();
+                    
+                    // Update sync status
+                    lastSyncTime = new Date();
+                    lastSync.textContent = lastSyncTime.toLocaleTimeString();
+                    conflictsResolvedSpan.textContent = conflictsResolved;
+                    syncStatus.textContent = 'Synchronized';
+                    syncStatus.className = 'status-value status-success';
+                    
+                    addToSyncLog(`Sync completed at ${lastSyncTime.toLocaleTimeString()}`);
+                    
+                    // Show conflict notification if any
+                    if (conflicts.length > 0) {
+                        conflictNotification.style.display = 'block';
+                        conflictDetails.innerHTML = '';
+                        
+                        conflicts.forEach(conflict => {
+                            const conflictHtml = `
+                                <div class="conflict-quote">
+                                    <div><strong>Quote ID:</strong> ${conflict.id}</div>
+                                    <div><strong>Server version:</strong> "${conflict.serverText.substring(0, 50)}..."</div>
+                                    <div><strong>Local version:</strong> "${conflict.localText.substring(0, 50)}..."</div>
+                                </div>
+                            `;
+                            conflictDetails.innerHTML += conflictHtml;
+                        });
+                        
+                        addToSyncLog(`Resolved ${conflicts.length} conflicts during sync`);
+                    }
+                    
+                } catch (error) {
+                    syncStatus.textContent = 'Sync Failed';
+                    syncStatus.className = 'status-value status-error';
+                    addToSyncLog(`Sync failed: ${error.message}`);
+                }
+            }, 1500); // Simulated network delay
+        }
+        
+        // Add entry to sync log
+        function addToSyncLog(message) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<strong>[${timeString}]</strong> ${message}`;
+            syncLog.prepend(logEntry);
+            
+            // Keep only the last 5 log entries
+            if (syncLog.children.length > 5) {
+                syncLog.removeChild(syncLog.lastChild);
+            }
+        }
+        
+        // Resolve conflicts manually
+        function resolveConflicts() {
+            alert('Manual conflict resolution would be implemented here. For this demo, server version is always used.');
+            conflictNotification.style.display = 'none';
         }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced Quote Generator</title>
+    <title>Server-Synced Quote Generator</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -17,10 +17,9 @@
             --primary: #4361ee;
             --secondary: #3f37c9;
             --accent: #4895ef;
-            --light: #f8f9fa;
-            --dark: #212529;
             --success: #4cc9f0;
             --warning: #f72585;
+            --error: #ff3860;
             --card-bg: rgba(255, 255, 255, 0.1);
             --header-bg: rgba(0, 0, 0, 0.3);
         }
@@ -111,7 +110,7 @@
             font-weight: 500;
         }
         
-        select, button.filter-btn {
+        select {
             padding: 10px 15px;
             border-radius: 8px;
             border: 2px solid var(--accent);
@@ -119,18 +118,6 @@
             font-size: 1rem;
             min-width: 200px;
             cursor: pointer;
-        }
-        
-        button.filter-btn {
-            background: linear-gradient(to right, #1d976c, #93f9b9);
-            color: white;
-            font-weight: bold;
-            text-align: center;
-        }
-        
-        button.filter-btn.active {
-            background: linear-gradient(to right, #ff416c, #ff4b2b);
-            box-shadow: 0 0 15px rgba(255, 107, 107, 0.5);
         }
         
         #quoteDisplay {
@@ -287,7 +274,7 @@
             animation: slideRight 0.8s ease-out;
         }
         
-        .import-section {
+        .sync-section {
             background: rgba(0, 0, 0, 0.3);
             border-radius: 15px;
             padding: 25px;
@@ -296,10 +283,69 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
         
-        .import-section h2 {
+        .sync-section h2 {
             margin-bottom: 20px;
             color: var(--success);
             font-size: 1.8rem;
+        }
+        
+        .sync-status {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+        
+        .status-label {
+            font-weight: 500;
+        }
+        
+        .status-value {
+            font-weight: bold;
+        }
+        
+        .status-success {
+            color: var(--success);
+        }
+        
+        .status-warning {
+            color: var(--warning);
+        }
+        
+        .status-error {
+            color: var(--error);
+        }
+        
+        .conflict-notification {
+            background: rgba(247, 37, 133, 0.2);
+            border-left: 4px solid var(--warning);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .conflict-quotes {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        
+        .conflict-quote {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
         }
         
         .storage-info {
@@ -376,12 +422,16 @@
             font-weight: 500;
         }
         
-        .category-buttons {
+        .sync-buttons {
             display: flex;
-            flex-wrap: wrap;
             gap: 10px;
-            margin-top: 15px;
             justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .sync-buttons button {
+            min-width: auto;
+            padding: 10px 20px;
         }
         
         @keyframes fadeIn {
@@ -399,13 +449,19 @@
             to { transform: translateX(0); opacity: 1; }
         }
         
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
         @media (max-width: 768px) {
             .filter-section {
                 flex-direction: column;
                 align-items: flex-start;
             }
             
-            .btn-group, .storage-actions {
+            .btn-group, .storage-actions, .sync-buttons {
                 flex-direction: column;
                 align-items: center;
             }
@@ -427,8 +483,8 @@
 <body>
     <div class="container">
         <header>
-            <h1><i class="fas fa-quote-left"></i> Quote Generator</h1>
-            <p class="subtitle">Discover, create, and filter inspirational quotes. Your personal quote library with powerful category filtering.</p>
+            <h1><i class="fas fa-quote-left"></i> Server-Synced Quote Generator</h1>
+            <p class="subtitle">Sync your quotes across devices with automatic conflict resolution</p>
         </header>
         
         <div class="main-content">
@@ -456,10 +512,6 @@
                         <button id="addQuoteBtn"><i class="fas fa-plus-circle"></i> Add New Quote</button>
                     </div>
                     
-                    <div class="category-buttons" id="quickCategoryFilters">
-                        <!-- Quick category filters will appear here -->
-                    </div>
-                    
                     <div class="storage-actions">
                         <button id="exportBtn"><i class="fas fa-file-export"></i> Export Quotes</button>
                         <button id="clearStorageBtn"><i class="fas fa-trash-alt"></i> Clear All</button>
@@ -484,11 +536,44 @@
                     </div>
                 </section>
                 
-                <section class="import-section">
-                    <h2><i class="fas fa-file-import"></i> Import Quotes</h2>
-                    <p>Upload a JSON file to add quotes to your collection</p>
-                    <div class="form-group">
-                        <input type="file" id="importFile" accept=".json">
+                <section class="sync-section">
+                    <h2><i class="fas fa-sync-alt"></i> Server Synchronization</h2>
+                    
+                    <div class="sync-status">
+                        <div class="status-item">
+                            <span class="status-label">Sync Status:</span>
+                            <span id="syncStatus" class="status-value status-success">Connected</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Last Sync:</span>
+                            <span id="lastSync" class="status-value">Never</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Server Version:</span>
+                            <span id="serverVersion" class="status-value">v1.0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Conflicts Resolved:</span>
+                            <span id="conflictsResolved" class="status-value">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="sync-buttons">
+                        <button id="syncNowBtn"><i class="fas fa-sync"></i> Sync Now</button>
+                        <button id="forceSyncBtn"><i class="fas fa-redo"></i> Force Sync</button>
+                    </div>
+                    
+                    <div id="conflictNotification" class="conflict-notification">
+                        <h3><i class="fas fa-exclamation-triangle"></i> Conflict Detected</h3>
+                        <p>We found conflicting changes during synchronization. Server version was prioritized.</p>
+                        
+                        <div id="conflictDetails" class="conflict-quotes">
+                            <!-- Conflict details will appear here -->
+                        </div>
+                        
+                        <div class="sync-buttons" style="margin-top: 15px;">
+                            <button id="resolveConflictBtn"><i class="fas fa-hands-helping"></i> Resolve Conflicts</button>
+                        </div>
                     </div>
                 </section>
             </div>
@@ -498,21 +583,22 @@
                     <div class="storage-box">
                         <h3><i class="fas fa-database"></i> Local Storage</h3>
                         <div id="localStorageContent" class="storage-content">
-                            No quotes in local storage
+                            Loading...
                         </div>
                     </div>
                     
                     <div class="storage-box">
-                        <h3><i class="fas fa-history"></i> Session Storage</h3>
-                        <div id="sessionStorageContent" class="storage-content">
-                            No recent quote in session storage
+                        <h3><i class="fas fa-server"></i> Server Storage</h3>
+                        <div id="serverStorageContent" class="storage-content">
+                            Loading...
                         </div>
                     </div>
                     
                     <div class="storage-box">
-                        <h3><i class="fas fa-tags"></i> Categories</h3>
-                        <div id="categoryInfo" class="storage-content">
-                            No categories available
+                        <h3><i class="fas fa-history"></i> Sync Log</h3>
+                        <div id="syncLog" class="storage-content">
+                            <div>System initialized</div>
+                            <div>Waiting for first sync...</div>
                         </div>
                     </div>
                 </div>
@@ -520,7 +606,7 @@
         </div>
         
         <footer>
-            <p>Quotes are persisted across sessions using localStorage. Your last viewed quote is stored in sessionStorage.</p>
+            <p>Quotes are synced with the server every 30 seconds. Conflicts are resolved automatically.</p>
             <p>Current filter: <span id="currentFilter" class="highlight">All Categories</span></p>
         </footer>
     </div>
