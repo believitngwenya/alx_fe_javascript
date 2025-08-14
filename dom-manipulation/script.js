@@ -1,4 +1,4 @@
-        // Quote array with initial data
+// Quote array with initial data
         let quotes = [];
         let selectedCategory = 'all';
         let serverQuotes = [];
@@ -36,6 +36,7 @@
         const syncIntervalInput = document.getElementById('syncInterval');
         const updateIntervalBtn = document.getElementById('updateIntervalBtn');
         const autoSyncStatus = document.getElementById('autoSyncStatus');
+        const notificationContainer = document.getElementById('notificationContainer');
         
         // Initialize the application
         document.addEventListener('DOMContentLoaded', () => {
@@ -223,17 +224,18 @@
                 populateCategories();
                 showRandomQuote();
                 
-                alert('Quote added successfully!');
+                // Show success notification
+                showNotification('Quote Added', `"${text.substring(0, 40)}..." added successfully!`, 'success');
                 addToSyncLog(`Added new quote: "${text.substring(0, 20)}..."`);
             } else {
-                alert('Please fill in both fields.');
+                showNotification('Validation Error', 'Please fill in both fields.', 'warning');
             }
         }
         
         // Export quotes to JSON file
         function exportQuotes() {
             if (quotes.length === 0) {
-                showSyncNotification('Info', 'No quotes to export!');
+                showNotification('Export Failed', 'No quotes to export!', 'warning');
                 return;
             }
             
@@ -249,8 +251,8 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
+            showNotification('Export Successful', 'Quotes exported to JSON file!', 'success');
             addToSyncLog('Exported quotes to JSON file');
-            showSyncNotification('Success', 'Quotes exported successfully!');
         }
         
         // Clear all quotes from storage
@@ -268,8 +270,8 @@
                 updateStorageDisplays();
                 updateQuoteCount();
                 
+                showNotification('Storage Cleared', 'All quotes have been cleared.', 'info');
                 addToSyncLog('Cleared all quotes');
-                showSyncNotification('Info', 'All quotes have been cleared.');
             }
         }
         
@@ -360,9 +362,9 @@
             if (newInterval >= 1 && newInterval <= 60) {
                 syncIntervalMinutes = newInterval;
                 startPeriodicSync();
-                showSyncNotification('Success', `Auto-sync interval updated to ${syncIntervalMinutes} minutes`);
+                showNotification('Interval Updated', `Auto-sync interval set to ${syncIntervalMinutes} minutes`, 'success');
             } else {
-                showSyncNotification('Error', 'Please enter a value between 1 and 60 minutes');
+                showNotification('Invalid Interval', 'Please enter a value between 1 and 60 minutes', 'warning');
             }
         }
         
@@ -408,7 +410,7 @@
                     syncStatus.textContent = 'Data Received';
                     syncStatus.className = 'status-value status-success';
                     addToSyncLog(`Fetched ${serverQuotes.length} quotes from server`);
-                    showSyncNotification('Success', `Fetched ${serverQuotes.length} quotes from server`);
+                    showNotification('Server Data Fetched', `Received ${serverQuotes.length} quotes from server`, 'success');
                 } else {
                     addToSyncLog(`Periodic fetch: ${serverQuotes.length} quotes received`);
                 }
@@ -416,10 +418,7 @@
                 if (!silent) {
                     syncStatus.textContent = 'Fetch Failed';
                     syncStatus.className = 'status-value status-error';
-                    showSyncNotification('Error', `
-                        <p>Failed to fetch quotes: ${error.message}</p>
-                        <p>Please check your network connection and try again.</p>
-                    `);
+                    showNotification('Fetch Failed', `Failed to fetch quotes: ${error.message}`, 'error');
                 }
                 addToSyncLog(`Fetch failed: ${error.message}`);
             }
@@ -448,10 +447,7 @@
             });
             
             if (updatesFound > 0) {
-                showSyncNotification('Updates Available', `
-                    <p>Server has ${updatesFound} updates (${newQuotes.length} new quotes)</p>
-                    <p>Click "Sync Quotes" to apply updates</p>
-                `);
+                showNotification('Updates Available', `Server has ${updatesFound} updates (${newQuotes.length} new quotes)`, 'info');
                 addToSyncLog(`Server updates detected: ${updatesFound} changes available`);
             }
         }
@@ -459,7 +455,7 @@
         // The main syncQuotes function
         async function syncQuotes() {
             if (serverQuotes.length === 0) {
-                showSyncNotification('Info', 'No server data available. Fetch data first.');
+                showNotification('No Server Data', 'Fetch server data first before syncing', 'warning');
                 return;
             }
             
@@ -594,23 +590,70 @@
                 syncDetails.innerHTML = report;
                 syncNotification.style.display = 'block';
                 
+                // Show the specific notification requested
+                showNotification('Sync Complete', 'Quotes synced with server!', 'success');
+                
                 addToSyncLog(`Sync completed: Added ${addedCount}, Updated ${updatedCount}, Sent ${sentToServer}`);
                 
             } catch (error) {
                 syncStatus.textContent = 'Sync Failed';
                 syncStatus.className = 'status-value status-error';
-                showSyncNotification('Error', `Synchronization failed: ${error.message}`);
+                showNotification('Sync Failed', `Synchronization failed: ${error.message}`, 'error');
                 addToSyncLog(`Sync failed: ${error.message}`);
             }
         }
         
-        // Show sync notification
-        function showSyncNotification(title, content) {
-            syncDetails.innerHTML = `
-                <h4>${title}</h4>
-                <div class="conflict-quote">${content}</div>
+        // Show notification
+        function showNotification(title, message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            
+            // Set icon based on type
+            let icon;
+            switch(type) {
+                case 'success':
+                    icon = 'fas fa-check-circle';
+                    break;
+                case 'warning':
+                    icon = 'fas fa-exclamation-triangle';
+                    break;
+                case 'error':
+                    icon = 'fas fa-exclamation-circle';
+                    break;
+                default:
+                    icon = 'fas fa-info-circle';
+            }
+            
+            notification.innerHTML = `
+                <div class="notification-icon">
+                    <i class="${icon}"></i>
+                </div>
+                <div class="notification-content">
+                    <div class="notification-title">${title}</div>
+                    <div class="notification-message">${message}</div>
+                </div>
+                <button class="notification-close">
+                    <i class="fas fa-times"></i>
+                </button>
             `;
-            syncNotification.style.display = 'block';
+            
+            notificationContainer.appendChild(notification);
+            
+            // Add close functionality
+            const closeBtn = notification.querySelector('.notification-close');
+            closeBtn.addEventListener('click', () => {
+                notification.remove();
+            });
+            
+            // Show animation
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
         }
         
         // Add entry to sync log
@@ -629,24 +672,5 @@
             // Keep only the last 5 log entries visible in UI
             while (syncLog.children.length > 5) {
                 syncLog.removeChild(syncLog.lastChild);
-            }
-        }
-        
-        // Load sync logs from localStorage on init
-        function loadSyncLogs() {
-            const logs = JSON.parse(localStorage.getItem('syncLogs') || []);
-            syncLog.innerHTML = '';
-            
-            logs.slice(0, 5).forEach(log => {
-                const logEntry = document.createElement('div');
-                // Convert ISO string to readable format
-                const logDate = new Date(log.match(/\[(.*?)\]/)[1]);
-                const readableTime = logDate.toLocaleTimeString();
-                logEntry.innerHTML = log.replace(/\[.*?\]/, `<strong>[${readableTime}]</strong>`);
-                syncLog.appendChild(logEntry);
-            });
-            
-            if (logs.length === 0) {
-                syncLog.innerHTML = '<div>System initialized</div><div>Waiting for first sync...</div>';
             }
         }
