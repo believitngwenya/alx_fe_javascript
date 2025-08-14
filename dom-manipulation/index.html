@@ -572,11 +572,12 @@
                     <div class="btn-group">
                         <button type="submit" id="submitQuoteBtn"><i class="fas fa-check-circle"></i> Add Quote</button>
                         <button type="button" id="cancelBtn"><i class="fas fa-times-circle"></i> Cancel</button>
+                        <button id="postToServerBtn"><i class="fas fa-cloud-upload-alt"></i> Post to Server</button>
                     </div>
                 </section>
                 
                 <section class="sync-section">
-                    <h2><i class="fas fa-sync-alt"></i> API Synchronization</h2>
+                    <h2><i class="fas fa-sync-alt"></i> API Operations</h2>
                     
                     <div class="sync-status">
                         <div class="status-item">
@@ -584,16 +585,16 @@
                             <span id="apiStatus" class="status-value status-success">Connected</span>
                         </div>
                         <div class="status-item">
-                            <span class="status-label">Last Sync:</span>
-                            <span id="lastSync" class="status-value">Never</span>
+                            <span class="status-label">Last Operation:</span>
+                            <span id="lastOperation" class="status-value">-</span>
                         </div>
                         <div class="status-item">
                             <span class="status-label">Server Version:</span>
                             <span id="serverVersion" class="status-value">v1.0</span>
                         </div>
                         <div class="status-item">
-                            <span class="status-label">Conflicts Resolved:</span>
-                            <span id="conflictsResolved" class="status-value">0</span>
+                            <span class="status-label">Posts Sent:</span>
+                            <span id="postsSent" class="status-value">0</span>
                         </div>
                     </div>
                     
@@ -602,16 +603,10 @@
                         <button id="syncNowBtn"><i class="fas fa-sync"></i> Sync Now</button>
                     </div>
                     
-                    <div id="conflictNotification" class="conflict-notification">
-                        <h3><i class="fas fa-exclamation-triangle"></i> Conflict Detected</h3>
-                        <p>We found conflicting changes during synchronization.</p>
-                        
-                        <div id="conflictDetails" class="conflict-quotes">
-                            <!-- Conflict details appear here -->
-                        </div>
-                        
-                        <div class="sync-buttons" style="margin-top: 15px;">
-                            <button id="resolveConflictBtn"><i class="fas fa-hands-helping"></i> Resolve Conflicts</button>
+                    <div id="apiNotification" class="conflict-notification">
+                        <h3 id="apiNotificationTitle"><i class="fas fa-info-circle"></i> API Notification</h3>
+                        <div id="apiNotificationContent" class="conflict-quotes">
+                            <!-- API responses will appear here -->
                         </div>
                     </div>
                 </section>
@@ -634,10 +629,10 @@
                     </div>
                     
                     <div class="storage-box">
-                        <h3><i class="fas fa-history"></i> Sync Log</h3>
-                        <div id="syncLog" class="storage-content">
+                        <h3><i class="fas fa-history"></i> API Log</h3>
+                        <div id="apiLog" class="storage-content">
                             <div>System initialized</div>
-                            <div>Waiting for first sync...</div>
+                            <div>Waiting for API operations...</div>
                         </div>
                     </div>
                 </div>
