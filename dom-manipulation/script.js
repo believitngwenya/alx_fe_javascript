@@ -1,8 +1,9 @@
-// Quote array with initial data
+        // Quote array with initial data
         let quotes = [];
         let selectedCategory = 'all';
         let serverQuotes = [];
-        let postsSent = 0;
+        let lastSyncTime = null;
+        let quotesSynced = 0;
         
         // DOM elements
         const quoteDisplay = document.getElementById('quoteDisplay');
@@ -13,23 +14,21 @@
         const clearStorageBtn = document.getElementById('clearStorageBtn');
         const submitQuoteBtn = document.getElementById('submitQuoteBtn');
         const cancelBtn = document.getElementById('cancelBtn');
-        const postToServerBtn = document.getElementById('postToServerBtn');
         const localStorageContent = document.getElementById('localStorageContent');
         const serverDataContent = document.getElementById('serverDataContent');
         const categoryFilter = document.getElementById('categoryFilter');
         const totalQuoteCount = document.getElementById('totalQuoteCount');
         const filteredCount = document.getElementById('filteredCount');
         const currentFilterSpan = document.getElementById('currentFilter');
-        const apiStatus = document.getElementById('apiStatus');
-        const lastOperation = document.getElementById('lastOperation');
+        const syncStatus = document.getElementById('syncStatus');
+        const lastSync = document.getElementById('lastSync');
         const serverVersion = document.getElementById('serverVersion');
-        const postsSentSpan = document.getElementById('postsSent');
+        const quotesSyncedSpan = document.getElementById('quotesSynced');
+        const syncQuotesBtn = document.getElementById('syncQuotesBtn');
         const fetchServerBtn = document.getElementById('fetchServerBtn');
-        const syncNowBtn = document.getElementById('syncNowBtn');
-        const apiNotification = document.getElementById('apiNotification');
-        const apiNotificationTitle = document.getElementById('apiNotificationTitle');
-        const apiNotificationContent = document.getElementById('apiNotificationContent');
-        const apiLog = document.getElementById('apiLog');
+        const syncNotification = document.getElementById('syncNotification');
+        const syncDetails = document.getElementById('syncDetails');
+        const syncLog = document.getElementById('syncLog');
         
         // Initialize the application
         document.addEventListener('DOMContentLoaded', () => {
@@ -39,7 +38,7 @@
             updateStorageDisplays();
             setupEventListeners();
             updateQuoteCount();
-            addToApiLog('Application initialized');
+            addToSyncLog('Application initialized');
         });
         
         // Load quotes from localStorage
@@ -215,71 +214,111 @@
                 showRandomQuote();
                 
                 alert('Quote added successfully!');
-                addToApiLog(`Added new quote: "${text.substring(0, 20)}..."`);
+                addToSyncLog(`Added new quote: "${text.substring(0, 20)}..."`);
             } else {
                 alert('Please fill in both fields.');
             }
         }
         
-        // Post a quote to the server
-        async function postQuoteToServer() {
-            const text = document.getElementById('quoteText').value.trim();
-            const category = document.getElementById('quoteCategory').value.trim();
-            
-            if (!text || !category) {
-                showApiNotification('Error', 'Please fill in both fields before posting to server');
+        // Export quotes to JSON file
+        function exportQuotes() {
+            if (quotes.length === 0) {
+                showSyncNotification('Info', 'No quotes to export!');
                 return;
             }
             
-            apiStatus.innerHTML = '<span class="loading"></span> Posting...';
-            apiStatus.className = 'status-value status-warning';
+            const dataStr = JSON.stringify(quotes, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
             
-            try {
-                const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        title: text,
-                        body: `Category: ${category}`,
-                        userId: 1
-                    })
-                });
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'quotes.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            addToSyncLog('Exported quotes to JSON file');
+            showSyncNotification('Success', 'Quotes exported successfully!');
+        }
+        
+        // Clear all quotes from storage
+        function clearAllQuotes() {
+            if (confirm('Are you sure you want to delete all quotes? This cannot be undone.')) {
+                quotes = [];
+                localStorage.removeItem('quotes');
+                localStorage.removeItem('quoteFilter');
+                sessionStorage.removeItem('lastQuote');
+                selectedCategory = 'all';
+                categoryFilter.value = 'all';
+                currentFilterSpan.textContent = 'All Categories';
+                quoteDisplay.innerHTML = '<p class="no-quotes">All quotes have been cleared.</p>';
+                populateCategories();
+                updateStorageDisplays();
+                updateQuoteCount();
                 
-                if (!response.ok) {
-                    throw new Error('Failed to post data to server');
-                }
-                
-                const data = await response.json();
-                
-                // Update UI
-                postsSent++;
-                postsSentSpan.textContent = postsSent;
-                lastOperation.textContent = 'POST Success';
-                apiStatus.textContent = 'Posted Successfully';
-                apiStatus.className = 'status-value status-success';
-                
-                // Show success notification
-                showApiNotification('Success', `Quote posted to server with ID: ${data.id}`);
-                addToApiLog(`Posted quote to server: "${text.substring(0, 20)}..."`);
-                
-            } catch (error) {
-                apiStatus.textContent = 'Post Failed';
-                apiStatus.className = 'status-value status-error';
-                lastOperation.textContent = 'POST Failed';
-                showApiNotification('Error', `Failed to post quote: ${error.message}`);
-                addToApiLog(`Post failed: ${error.message}`);
+                addToSyncLog('Cleared all quotes');
+                showSyncNotification('Info', 'All quotes have been cleared.');
             }
+        }
+        
+        // Update storage information displays
+        function updateStorageDisplays() {
+            // Local storage display
+            const storedQuotes = localStorage.getItem('quotes');
+            if (storedQuotes) {
+                const quoteCount = JSON.parse(storedQuotes).length;
+                const lastSaved = localStorage.getItem('lastSaved') || 'Unknown';
+                localStorageContent.innerHTML = `<strong>${quoteCount} quotes stored</strong>\nLast saved: ${lastSaved}`;
+            } else {
+                localStorageContent.textContent = 'No quotes in local storage';
+            }
+            
+            // Server data display
+            if (serverQuotes.length > 0) {
+                serverDataContent.innerHTML = `<strong>${serverQuotes.length} quotes from server</strong>\nLast fetched: ${lastSyncTime || 'Unknown'}`;
+            } else {
+                serverDataContent.textContent = 'No server data fetched yet';
+            }
+        }
+        
+        // Update quote count display
+        function updateQuoteCount() {
+            totalQuoteCount.textContent = quotes.length;
+            
+            // Update filtered count if a filter is active
+            if (selectedCategory !== 'all') {
+                const count = quotes.filter(q => q.category === selectedCategory).length;
+                filteredCount.innerHTML = ` | Showing: <span class="highlight">${count}</span>`;
+            } else {
+                filteredCount.textContent = '';
+            }
+        }
+        
+        // Set up event listeners
+        function setupEventListeners() {
+            newQuoteBtn.addEventListener('click', showRandomQuote);
+            addQuoteBtn.addEventListener('click', createAddQuoteForm);
+            submitQuoteBtn.addEventListener('click', addNewQuote);
+            cancelBtn.addEventListener('click', () => {
+                formContainer.style.display = 'none';
+                document.getElementById('quoteText').value = '';
+                document.getElementById('quoteCategory').value = '';
+            });
+            exportBtn.addEventListener('click', exportQuotes);
+            clearStorageBtn.addEventListener('click', clearAllQuotes);
+            categoryFilter.addEventListener('change', filterQuotes);
+            syncQuotesBtn.addEventListener('click', syncQuotes);
+            fetchServerBtn.addEventListener('click', fetchQuotesFromServer);
         }
         
         // Fetch quotes from server using JSONPlaceholder API
         async function fetchQuotesFromServer() {
-            apiStatus.innerHTML = '<span class="loading"></span> Fetching...';
-            apiStatus.className = 'status-value status-warning';
-            lastOperation.textContent = 'Fetching...';
+            syncStatus.innerHTML = '<span class="loading"></span> Fetching...';
+            syncStatus.className = 'status-value status-warning';
             
-            addToApiLog('Fetching quotes from server...');
+            addToSyncLog('Fetching quotes from server...');
             
             try {
                 // Fetch from JSONPlaceholder API
@@ -303,188 +342,146 @@
                 updateStorageDisplays();
                 
                 // Update status
-                lastOperation.textContent = 'Fetch Success';
-                apiStatus.textContent = 'Data Received';
-                apiStatus.className = 'status-value status-success';
+                lastSyncTime = new Date();
+                lastSync.textContent = lastSyncTime.toLocaleTimeString();
+                syncStatus.textContent = 'Data Received';
+                syncStatus.className = 'status-value status-success';
                 
-                addToApiLog(`Fetched ${serverQuotes.length} quotes from server`);
-                
-                // Show notification
-                showApiNotification('Success', `Fetched ${serverQuotes.length} quotes from server`);
+                addToSyncLog(`Fetched ${serverQuotes.length} quotes from server`);
+                showSyncNotification('Success', `Fetched ${serverQuotes.length} quotes from server`);
                 
             } catch (error) {
-                apiStatus.textContent = 'Fetch Failed';
-                apiStatus.className = 'status-value status-error';
-                lastOperation.textContent = 'Fetch Failed';
-                showApiNotification('Error', `Failed to fetch quotes: ${error.message}`);
-                addToApiLog(`Fetch failed: ${error.message}`);
+                syncStatus.textContent = 'Fetch Failed';
+                syncStatus.className = 'status-value status-error';
+                showSyncNotification('Error', `Failed to fetch quotes: ${error.message}`);
+                addToSyncLog(`Fetch failed: ${error.message}`);
             }
         }
         
-        // Sync server data with local quotes
-        function syncWithServer() {
+        // The main syncQuotes function
+        async function syncQuotes() {
             if (serverQuotes.length === 0) {
-                showApiNotification('Info', 'No server data available. Fetch data from server first.');
+                showSyncNotification('Info', 'No server data available. Fetch data first.');
                 return;
             }
             
-            apiStatus.innerHTML = '<span class="loading"></span> Syncing...';
-            apiStatus.className = 'status-value status-warning';
-            lastOperation.textContent = 'Syncing...';
+            syncStatus.innerHTML = '<span class="loading"></span> Syncing...';
+            syncStatus.className = 'status-value status-warning';
             
-            addToApiLog('Starting synchronization with server...');
+            addToSyncLog('Starting quote synchronization...');
             
-            // Simulate processing time
-            setTimeout(() => {
-                try {
-                    let newQuotesAdded = 0;
-                    
-                    // Merge server quotes into local quotes
-                    serverQuotes.forEach(serverQuote => {
-                        const localQuoteIndex = quotes.findIndex(q => q.id === serverQuote.id);
-                        
-                        if (localQuoteIndex === -1) {
-                            // New quote from server
-                            quotes.push(serverQuote);
-                            newQuotesAdded++;
-                        }
-                    });
-                    
-                    // Save updated quotes
-                    saveQuotesToLocalStorage();
-                    populateCategories();
-                    
-                    // Update status
-                    lastOperation.textContent = 'Sync Complete';
-                    apiStatus.textContent = 'Sync Complete';
-                    apiStatus.className = 'status-value status-success';
-                    
-                    addToApiLog(`Sync completed. Added ${newQuotesAdded} new quotes from server`);
-                    
-                    // Show notification
-                    showApiNotification('Success', `Synchronization complete! Added ${newQuotesAdded} new quotes.`);
-                    
-                } catch (error) {
-                    apiStatus.textContent = 'Sync Failed';
-                    apiStatus.className = 'status-value status-error';
-                    lastOperation.textContent = 'Sync Failed';
-                    showApiNotification('Error', `Synchronization failed: ${error.message}`);
-                    addToApiLog(`Sync failed: ${error.message}`);
-                }
-            }, 1500);
-        }
-        
-        // Export quotes to JSON file
-        function exportQuotes() {
-            if (quotes.length === 0) {
-                showApiNotification('Info', 'No quotes to export!');
-                return;
-            }
-            
-            const dataStr = JSON.stringify(quotes, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'quotes.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            addToApiLog('Exported quotes to JSON file');
-            showApiNotification('Success', 'Quotes exported successfully!');
-        }
-        
-        // Clear all quotes from storage
-        function clearAllQuotes() {
-            if (confirm('Are you sure you want to delete all quotes? This cannot be undone.')) {
-                quotes = [];
-                localStorage.removeItem('quotes');
-                localStorage.removeItem('quoteFilter');
-                sessionStorage.removeItem('lastQuote');
-                selectedCategory = 'all';
-                categoryFilter.value = 'all';
-                currentFilterSpan.textContent = 'All Categories';
-                quoteDisplay.innerHTML = '<p class="no-quotes">All quotes have been cleared.</p>';
-                populateCategories();
-                updateStorageDisplays();
-                updateQuoteCount();
+            try {
+                let addedCount = 0;
+                let updatedCount = 0;
+                let conflicts = 0;
                 
-                addToApiLog('Cleared all quotes');
-                showApiNotification('Info', 'All quotes have been cleared.');
+                // Sync server quotes to local
+                serverQuotes.forEach(serverQuote => {
+                    const localIndex = quotes.findIndex(q => q.id === serverQuote.id);
+                    
+                    if (localIndex === -1) {
+                        // Add new quote from server
+                        quotes.push(serverQuote);
+                        addedCount++;
+                    } else {
+                        // Check for conflicts
+                        const localQuote = quotes[localIndex];
+                        if (localQuote.text !== serverQuote.text || localQuote.category !== serverQuote.category) {
+                            // Conflict resolution: server version wins
+                            quotes[localIndex] = {
+                                ...serverQuote,
+                                version: localQuote.version + 1
+                            };
+                            updatedCount++;
+                            conflicts++;
+                        }
+                    }
+                });
+                
+                // Send new local quotes to server
+                let sentToServer = 0;
+                for (const localQuote of quotes) {
+                    const existsOnServer = serverQuotes.some(sq => sq.id === localQuote.id);
+                    
+                    if (!existsOnServer) {
+                        try {
+                            // POST new quote to server
+                            await fetch('https://jsonplaceholder.typicode.com/posts', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    title: localQuote.text,
+                                    body: `Category: ${localQuote.category}`,
+                                    userId: 1
+                                })
+                            });
+                            
+                            sentToServer++;
+                        } catch (error) {
+                            console.error('Error posting quote to server:', error);
+                        }
+                    }
+                }
+                
+                // Save changes
+                saveQuotesToLocalStorage();
+                populateCategories();
+                
+                // Update sync status
+                quotesSynced += addedCount + updatedCount + sentToServer;
+                quotesSyncedSpan.textContent = quotesSynced;
+                lastSyncTime = new Date();
+                lastSync.textContent = lastSyncTime.toLocaleTimeString();
+                syncStatus.textContent = 'Sync Complete';
+                syncStatus.className = 'status-value status-success';
+                
+                // Create sync report
+                const report = `
+                    <div class="conflict-quote">
+                        <p><i class="fas fa-check-circle"></i> Added ${addedCount} new quotes from server</p>
+                    </div>
+                    <div class="conflict-quote">
+                        <p><i class="fas fa-sync-alt"></i> Updated ${updatedCount} quotes (${conflicts} conflicts resolved)</p>
+                    </div>
+                    <div class="conflict-quote">
+                        <p><i class="fas fa-cloud-upload-alt"></i> Sent ${sentToServer} new quotes to server</p>
+                    </div>
+                    <div class="conflict-quote">
+                        <p><i class="fas fa-database"></i> Total quotes: ${quotes.length}</p>
+                    </div>
+                `;
+                
+                syncDetails.innerHTML = report;
+                syncNotification.style.display = 'block';
+                
+                addToSyncLog(`Sync completed: Added ${addedCount}, Updated ${updatedCount}, Sent ${sentToServer}`);
+                
+            } catch (error) {
+                syncStatus.textContent = 'Sync Failed';
+                syncStatus.className = 'status-value status-error';
+                showSyncNotification('Error', `Synchronization failed: ${error.message}`);
+                addToSyncLog(`Sync failed: ${error.message}`);
             }
         }
         
-        // Update storage information displays
-        function updateStorageDisplays() {
-            // Local storage display
-            const storedQuotes = localStorage.getItem('quotes');
-            if (storedQuotes) {
-                const quoteCount = JSON.parse(storedQuotes).length;
-                const lastSaved = localStorage.getItem('lastSaved') || 'Unknown';
-                localStorageContent.innerHTML = `<strong>${quoteCount} quotes stored</strong>\nLast saved: ${lastSaved}`;
-            } else {
-                localStorageContent.textContent = 'No quotes in local storage';
-            }
-            
-            // Server data display
-            if (serverQuotes.length > 0) {
-                serverDataContent.innerHTML = `<strong>${serverQuotes.length} quotes from server</strong>\nLast fetched: ${lastOperation.textContent || 'Unknown'}`;
-            } else {
-                serverDataContent.textContent = 'No server data fetched yet';
-            }
+        // Show sync notification
+        function showSyncNotification(title, content) {
+            syncDetails.innerHTML = `<div class="conflict-quote">${content}</div>`;
+            syncNotification.style.display = 'block';
         }
         
-        // Update quote count display
-        function updateQuoteCount() {
-            totalQuoteCount.textContent = quotes.length;
-            
-            // Update filtered count if a filter is active
-            if (selectedCategory !== 'all') {
-                const count = quotes.filter(q => q.category === selectedCategory).length;
-                filteredCount.innerHTML = ` | Showing: <span class="highlight">${count}</span>`;
-            } else {
-                filteredCount.textContent = '';
-            }
-        }
-        
-        // Show API notification
-        function showApiNotification(title, content) {
-            apiNotificationTitle.innerHTML = `<i class="fas fa-info-circle"></i> ${title}`;
-            apiNotificationContent.innerHTML = `<div class="conflict-quote">${content}</div>`;
-            apiNotification.style.display = 'block';
-        }
-        
-        // Add entry to API log
-        function addToApiLog(message) {
+        // Add entry to sync log
+        function addToSyncLog(message) {
             const now = new Date();
             const timeString = now.toLocaleTimeString();
             const logEntry = document.createElement('div');
             logEntry.innerHTML = `<strong>[${timeString}]</strong> ${message}`;
-            apiLog.prepend(logEntry);
+            syncLog.prepend(logEntry);
             
             // Keep only the last 5 log entries
-            while (apiLog.children.length > 5) {
-                apiLog.removeChild(apiLog.lastChild);
+            while (syncLog.children.length > 5) {
+                syncLog.removeChild(syncLog.lastChild);
             }
-        }
-        
-        // Set up event listeners
-        function setupEventListeners() {
-            newQuoteBtn.addEventListener('click', showRandomQuote);
-            addQuoteBtn.addEventListener('click', createAddQuoteForm);
-            submitQuoteBtn.addEventListener('click', addNewQuote);
-            cancelBtn.addEventListener('click', () => {
-                formContainer.style.display = 'none';
-                document.getElementById('quoteText').value = '';
-                document.getElementById('quoteCategory').value = '';
-            });
-            postToServerBtn.addEventListener('click', postQuoteToServer);
-            exportBtn.addEventListener('click', exportQuotes);
-            clearStorageBtn.addEventListener('click', clearAllQuotes);
-            categoryFilter.addEventListener('change', filterQuotes);
-            fetchServerBtn.addEventListener('click', fetchQuotesFromServer);
-            syncNowBtn.addEventListener('click', syncWithServer);
         }

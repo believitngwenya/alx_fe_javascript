@@ -46,7 +46,6 @@
             background: var(--header-bg);
             border-radius: 15px;
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-            animation: fadeIn 1s ease-out;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
@@ -88,7 +87,6 @@
             padding: 30px;
             margin-bottom: 30px;
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-            animation: slideUp 0.8s ease-out;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
@@ -138,7 +136,6 @@
             padding: 30px;
             background: rgba(0, 0, 0, 0.2);
             border-radius: 15px;
-            transition: all 0.4s ease;
             position: relative;
             overflow: hidden;
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -250,8 +247,6 @@
             border-radius: 15px;
             padding: 30px;
             margin-bottom: 30px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-            animation: fadeIn 0.8s ease-out;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
@@ -285,8 +280,6 @@
             background: var(--card-bg);
             border-radius: 15px;
             padding: 30px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-            animation: slideRight 0.8s ease-out;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
@@ -297,7 +290,6 @@
             padding: 25px;
             margin-bottom: 30px;
             text-align: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
@@ -372,7 +364,6 @@
             background: rgba(0, 0, 0, 0.3);
             border-radius: 15px;
             padding: 25px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
@@ -411,8 +402,6 @@
             opacity: 0.9;
             background: var(--header-bg);
             border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            animation: fadeIn 1s ease-out;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
@@ -522,7 +511,7 @@
     <div class="container">
         <header>
             <h1><i class="fas fa-quote-left"></i> Quote Sync Master</h1>
-            <p class="subtitle">Synchronize your quotes with mock API and resolve conflicts</p>
+            <p class="subtitle">Synchronize your quotes with mock API using syncQuotes</p>
         </header>
         
         <div class="main-content">
@@ -533,7 +522,6 @@
                             <label for="categoryFilter"><i class="fas fa-filter"></i> Filter by Category:</label>
                             <select id="categoryFilter">
                                 <option value="all">All Categories</option>
-                                <!-- Categories populated dynamically -->
                             </select>
                         </div>
                         <div class="quote-count">
@@ -572,41 +560,40 @@
                     <div class="btn-group">
                         <button type="submit" id="submitQuoteBtn"><i class="fas fa-check-circle"></i> Add Quote</button>
                         <button type="button" id="cancelBtn"><i class="fas fa-times-circle"></i> Cancel</button>
-                        <button id="postToServerBtn"><i class="fas fa-cloud-upload-alt"></i> Post to Server</button>
                     </div>
                 </section>
                 
                 <section class="sync-section">
-                    <h2><i class="fas fa-sync-alt"></i> API Operations</h2>
+                    <h2><i class="fas fa-sync-alt"></i> Synchronization Center</h2>
                     
                     <div class="sync-status">
                         <div class="status-item">
-                            <span class="status-label">API Status:</span>
-                            <span id="apiStatus" class="status-value status-success">Connected</span>
+                            <span class="status-label">Sync Status:</span>
+                            <span id="syncStatus" class="status-value status-success">Ready</span>
                         </div>
                         <div class="status-item">
-                            <span class="status-label">Last Operation:</span>
-                            <span id="lastOperation" class="status-value">-</span>
+                            <span class="status-label">Last Sync:</span>
+                            <span id="lastSync" class="status-value">Never</span>
                         </div>
                         <div class="status-item">
                             <span class="status-label">Server Version:</span>
                             <span id="serverVersion" class="status-value">v1.0</span>
                         </div>
                         <div class="status-item">
-                            <span class="status-label">Posts Sent:</span>
-                            <span id="postsSent" class="status-value">0</span>
+                            <span class="status-label">Quotes Synced:</span>
+                            <span id="quotesSynced" class="status-value">0</span>
                         </div>
                     </div>
                     
                     <div class="sync-buttons">
-                        <button id="fetchServerBtn"><i class="fas fa-download"></i> Fetch From Server</button>
-                        <button id="syncNowBtn"><i class="fas fa-sync"></i> Sync Now</button>
+                        <button id="syncQuotesBtn"><i class="fas fa-sync"></i> Sync Quotes</button>
+                        <button id="fetchServerBtn"><i class="fas fa-download"></i> Fetch Server Data</button>
                     </div>
                     
-                    <div id="apiNotification" class="conflict-notification">
-                        <h3 id="apiNotificationTitle"><i class="fas fa-info-circle"></i> API Notification</h3>
-                        <div id="apiNotificationContent" class="conflict-quotes">
-                            <!-- API responses will appear here -->
+                    <div id="syncNotification" class="conflict-notification">
+                        <h3><i class="fas fa-info-circle"></i> Sync Report</h3>
+                        <div id="syncDetails" class="conflict-quotes">
+                            <!-- Sync details will appear here -->
                         </div>
                     </div>
                 </section>
@@ -629,10 +616,10 @@
                     </div>
                     
                     <div class="storage-box">
-                        <h3><i class="fas fa-history"></i> API Log</h3>
-                        <div id="apiLog" class="storage-content">
+                        <h3><i class="fas fa-history"></i> Sync Log</h3>
+                        <div id="syncLog" class="storage-content">
                             <div>System initialized</div>
-                            <div>Waiting for API operations...</div>
+                            <div>Waiting for first sync...</div>
                         </div>
                     </div>
                 </div>
