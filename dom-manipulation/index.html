@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Server-Synced Quote Generator</title>
+    <title>Quote Sync Master</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -20,12 +20,13 @@
             --success: #4cc9f0;
             --warning: #f72585;
             --error: #ff3860;
-            --card-bg: rgba(255, 255, 255, 0.1);
-            --header-bg: rgba(0, 0, 0, 0.3);
+            --dark-bg: #0f1b3d;
+            --card-bg: rgba(255, 255, 255, 0.08);
+            --header-bg: rgba(255, 255, 255, 0.1);
         }
         
         body {
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+            background: linear-gradient(135deg, var(--dark-bg), #1e3a8a, var(--dark-bg));
             color: white;
             min-height: 100vh;
             padding: 20px;
@@ -46,13 +47,15 @@
             border-radius: 15px;
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
             animation: fadeIn 1s ease-out;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         h1 {
             font-size: 2.8rem;
             margin-bottom: 10px;
             text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
-            background: linear-gradient(to right, #ff9a9e, #fad0c4);
+            background: linear-gradient(to right, #4facfe, #00f2fe);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -64,6 +67,7 @@
             max-width: 800px;
             margin: 0 auto;
             line-height: 1.6;
+            color: #cbd5e1;
         }
         
         .main-content {
@@ -85,6 +89,8 @@
             margin-bottom: 30px;
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
             animation: slideUp 0.8s ease-out;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .filter-section {
@@ -95,7 +101,7 @@
             flex-wrap: wrap;
             gap: 15px;
             padding: 15px;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 10px;
         }
         
@@ -108,16 +114,18 @@
         label {
             font-size: 1.1rem;
             font-weight: 500;
+            color: #e2e8f0;
         }
         
         select {
             padding: 10px 15px;
             border-radius: 8px;
             border: 2px solid var(--accent);
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(30, 41, 59, 0.8);
             font-size: 1rem;
             min-width: 200px;
             cursor: pointer;
+            color: white;
         }
         
         #quoteDisplay {
@@ -133,6 +141,7 @@
             transition: all 0.4s ease;
             position: relative;
             overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         #quoteDisplay::before {
@@ -146,7 +155,7 @@
         }
         
         blockquote {
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-style: italic;
             margin-bottom: 20px;
             line-height: 1.4;
@@ -155,15 +164,17 @@
             max-width: 800px;
             text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
             z-index: 1;
+            color: #f8fafc;
         }
         
         blockquote::before, blockquote::after {
             content: '"';
             font-size: 4rem;
             position: absolute;
-            opacity: 0.3;
+            opacity: 0.2;
             line-height: 1;
             z-index: -1;
+            color: var(--accent);
         }
         
         blockquote::before {
@@ -194,7 +205,7 @@
         }
         
         button {
-            background: linear-gradient(to right, #ff416c, #ff4b2b);
+            background: linear-gradient(to right, #4a6cf7, #6a82fb);
             color: white;
             border: none;
             padding: 14px 28px;
@@ -209,6 +220,7 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         button:hover {
@@ -240,6 +252,8 @@
             margin-bottom: 30px;
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
             animation: fadeIn 0.8s ease-out;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .form-group {
@@ -257,8 +271,9 @@
             padding: 14px;
             border-radius: 10px;
             border: 2px solid var(--accent);
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(30, 41, 59, 0.8);
             font-size: 1.1rem;
+            color: white;
         }
         
         textarea {
@@ -272,6 +287,8 @@
             padding: 30px;
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
             animation: slideRight 0.8s ease-out;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .sync-section {
@@ -281,6 +298,7 @@
             margin-bottom: 30px;
             text-align: center;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .sync-section h2 {
@@ -301,12 +319,13 @@
             justify-content: space-between;
             align-items: center;
             padding: 10px;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 8px;
         }
         
         .status-label {
             font-weight: 500;
+            color: #cbd5e1;
         }
         
         .status-value {
@@ -326,7 +345,7 @@
         }
         
         .conflict-notification {
-            background: rgba(247, 37, 133, 0.2);
+            background: rgba(247, 37, 133, 0.15);
             border-left: 4px solid var(--warning);
             padding: 15px;
             border-radius: 8px;
@@ -344,8 +363,9 @@
         .conflict-quote {
             margin-bottom: 10px;
             padding: 10px;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 8px;
+            font-size: 0.9rem;
         }
         
         .storage-info {
@@ -353,6 +373,7 @@
             border-radius: 15px;
             padding: 25px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .storage-box {
@@ -370,7 +391,7 @@
         
         .storage-content {
             min-height: 100px;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 10px;
             padding: 20px;
             text-align: left;
@@ -379,6 +400,7 @@
             font-family: monospace;
             font-size: 0.95rem;
             line-height: 1.6;
+            color: #e2e8f0;
         }
         
         footer {
@@ -391,6 +413,8 @@
             border-radius: 15px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             animation: fadeIn 1s ease-out;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .highlight {
@@ -434,6 +458,16 @@
             padding: 10px 20px;
         }
         
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -447,6 +481,10 @@
         @keyframes slideRight {
             from { transform: translateX(30px); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         @keyframes pulse {
@@ -483,8 +521,8 @@
 <body>
     <div class="container">
         <header>
-            <h1><i class="fas fa-quote-left"></i> Server-Synced Quote Generator</h1>
-            <p class="subtitle">Sync your quotes across devices with automatic conflict resolution</p>
+            <h1><i class="fas fa-quote-left"></i> Quote Sync Master</h1>
+            <p class="subtitle">Synchronize your quotes with mock API and resolve conflicts</p>
         </header>
         
         <div class="main-content">
@@ -495,10 +533,11 @@
                             <label for="categoryFilter"><i class="fas fa-filter"></i> Filter by Category:</label>
                             <select id="categoryFilter">
                                 <option value="all">All Categories</option>
+                                <!-- Categories populated dynamically -->
                             </select>
                         </div>
                         <div class="quote-count">
-                            <i class="fas fa-quote-right"></i> Total Quotes: <span id="totalQuoteCount">0</span>
+                            <i class="fas fa-quote-right"></i> Quotes: <span id="totalQuoteCount">0</span>
                             <span id="filteredCount"></span>
                         </div>
                     </div>
@@ -509,11 +548,11 @@
                     
                     <div class="btn-group">
                         <button id="newQuote"><i class="fas fa-random"></i> Show New Quote</button>
-                        <button id="addQuoteBtn"><i class="fas fa-plus-circle"></i> Add New Quote</button>
+                        <button id="addQuoteBtn"><i class="fas fa-plus-circle"></i> Add Quote</button>
                     </div>
                     
                     <div class="storage-actions">
-                        <button id="exportBtn"><i class="fas fa-file-export"></i> Export Quotes</button>
+                        <button id="exportBtn"><i class="fas fa-file-export"></i> Export</button>
                         <button id="clearStorageBtn"><i class="fas fa-trash-alt"></i> Clear All</button>
                     </div>
                 </section>
@@ -537,12 +576,12 @@
                 </section>
                 
                 <section class="sync-section">
-                    <h2><i class="fas fa-sync-alt"></i> Server Synchronization</h2>
+                    <h2><i class="fas fa-sync-alt"></i> API Synchronization</h2>
                     
                     <div class="sync-status">
                         <div class="status-item">
-                            <span class="status-label">Sync Status:</span>
-                            <span id="syncStatus" class="status-value status-success">Connected</span>
+                            <span class="status-label">API Status:</span>
+                            <span id="apiStatus" class="status-value status-success">Connected</span>
                         </div>
                         <div class="status-item">
                             <span class="status-label">Last Sync:</span>
@@ -559,16 +598,16 @@
                     </div>
                     
                     <div class="sync-buttons">
+                        <button id="fetchServerBtn"><i class="fas fa-download"></i> Fetch From Server</button>
                         <button id="syncNowBtn"><i class="fas fa-sync"></i> Sync Now</button>
-                        <button id="forceSyncBtn"><i class="fas fa-redo"></i> Force Sync</button>
                     </div>
                     
                     <div id="conflictNotification" class="conflict-notification">
                         <h3><i class="fas fa-exclamation-triangle"></i> Conflict Detected</h3>
-                        <p>We found conflicting changes during synchronization. Server version was prioritized.</p>
+                        <p>We found conflicting changes during synchronization.</p>
                         
                         <div id="conflictDetails" class="conflict-quotes">
-                            <!-- Conflict details will appear here -->
+                            <!-- Conflict details appear here -->
                         </div>
                         
                         <div class="sync-buttons" style="margin-top: 15px;">
@@ -588,9 +627,9 @@
                     </div>
                     
                     <div class="storage-box">
-                        <h3><i class="fas fa-server"></i> Server Storage</h3>
-                        <div id="serverStorageContent" class="storage-content">
-                            Loading...
+                        <h3><i class="fas fa-server"></i> Server Data</h3>
+                        <div id="serverDataContent" class="storage-content">
+                            No server data fetched yet
                         </div>
                     </div>
                     
@@ -606,7 +645,7 @@
         </div>
         
         <footer>
-            <p>Quotes are synced with the server every 30 seconds. Conflicts are resolved automatically.</p>
+            <p>Using mock API: <span class="highlight">https://jsonplaceholder.typicode.com/posts</span></p>
             <p>Current filter: <span id="currentFilter" class="highlight">All Categories</span></p>
         </footer>
     </div>
