@@ -326,19 +326,13 @@
             addToSyncLog('Started periodic sync (every 30 seconds)');
         }
         
-        // Simulate server synchronization
-        function syncWithServer(force = false) {
-            // Show syncing status
-            syncStatus.textContent = 'Syncing...';
-            syncStatus.className = 'status-value status-warning';
-            
-            addToSyncLog('Starting server synchronization...');
-            
-            // Simulate network delay
-            setTimeout(() => {
-                try {
-                    // Simulate server response
-                    const serverQuotes = [
+        // Fetch quotes from server simulation
+        function fetchQuotesFromServer() {
+            // Simulate server response with some quotes
+            return new Promise((resolve) => {
+                // Simulate network delay
+                setTimeout(() => {
+                    resolve([
                         { id: 1, text: "The only way to do great work is to love what you do.", category: "Inspiration", version: 1 },
                         { id: 2, text: "Innovation distinguishes between a leader and a follower.", category: "Business", version: 1 },
                         { id: 3, text: "Life is what happens when you're busy making other plans.", category: "Life", version: 1 },
@@ -346,82 +340,96 @@
                         { id: 5, text: "Be the change that you wish to see in the world.", category: "Wisdom", version: 1 },
                         { id: 6, text: "The greatest glory in living lies not in never falling, but in rising every time we fall.", category: "Perseverance", version: 2 },
                         { id: 7, text: "The way to get started is to quit talking and begin doing.", category: "Action", version: 1 }
-                    ];
+                    ]);
+                }, 1000);
+            });
+        }
+        
+        // Simulate server synchronization
+        async function syncWithServer(force = false) {
+            // Show syncing status
+            syncStatus.textContent = 'Syncing...';
+            syncStatus.className = 'status-value status-warning';
+            
+            addToSyncLog('Starting server synchronization...');
+            
+            try {
+                // Fetch quotes from server
+                const serverQuotes = await fetchQuotesFromServer();
+                
+                // Merge server quotes into local
+                const conflicts = [];
+                
+                // Merge server quotes with local quotes
+                serverQuotes.forEach(serverQuote => {
+                    const localQuote = quotes.find(q => q.id === serverQuote.id);
                     
-                    // Simulate conflicts
-                    const conflicts = [];
-                    
-                    // Merge server quotes with local quotes
-                    serverQuotes.forEach(serverQuote => {
-                        const localQuote = quotes.find(q => q.id === serverQuote.id);
-                        
-                        if (localQuote) {
-                            // Check for conflict
-                            if (localQuote.version !== serverQuote.version && 
-                                localQuote.text !== serverQuote.text) {
-                                conflicts.push({
-                                    id: serverQuote.id,
-                                    serverText: serverQuote.text,
-                                    serverCategory: serverQuote.category,
-                                    localText: localQuote.text,
-                                    localCategory: localQuote.category
-                                });
-                                
-                                // Resolve conflict by using server version
-                                localQuote.text = serverQuote.text;
-                                localQuote.category = serverQuote.category;
-                                localQuote.version = serverQuote.version;
-                                conflictsResolved++;
-                            } else if (serverQuote.version > localQuote.version) {
-                                // Update local with server version
-                                localQuote.text = serverQuote.text;
-                                localQuote.category = serverQuote.category;
-                                localQuote.version = serverQuote.version;
-                            }
-                        } else {
-                            // Add new quote from server
-                            quotes.push(serverQuote);
+                    if (localQuote) {
+                        // Check for conflict
+                        if (localQuote.version !== serverQuote.version && 
+                            localQuote.text !== serverQuote.text) {
+                            conflicts.push({
+                                id: serverQuote.id,
+                                serverText: serverQuote.text,
+                                serverCategory: serverQuote.category,
+                                localText: localQuote.text,
+                                localCategory: localQuote.category
+                            });
+                            
+                            // Resolve conflict by using server version
+                            localQuote.text = serverQuote.text;
+                            localQuote.category = serverQuote.category;
+                            localQuote.version = serverQuote.version;
+                            conflictsResolved++;
+                        } else if (serverQuote.version > localQuote.version) {
+                            // Update local with server version
+                            localQuote.text = serverQuote.text;
+                            localQuote.category = serverQuote.category;
+                            localQuote.version = serverQuote.version;
                         }
+                    } else {
+                        // Add new quote from server
+                        quotes.push(serverQuote);
+                    }
+                });
+                
+                // Update UI and storage
+                saveQuotesToLocalStorage();
+                populateCategories();
+                
+                // Update sync status
+                lastSyncTime = new Date();
+                lastSync.textContent = lastSyncTime.toLocaleTimeString();
+                conflictsResolvedSpan.textContent = conflictsResolved;
+                syncStatus.textContent = 'Synchronized';
+                syncStatus.className = 'status-value status-success';
+                
+                addToSyncLog(`Sync completed at ${lastSyncTime.toLocaleTimeString()}`);
+                
+                // Show conflict notification if any
+                if (conflicts.length > 0) {
+                    conflictNotification.style.display = 'block';
+                    conflictDetails.innerHTML = '';
+                    
+                    conflicts.forEach(conflict => {
+                        const conflictHtml = `
+                            <div class="conflict-quote">
+                                <div><strong>Quote ID:</strong> ${conflict.id}</div>
+                                <div><strong>Server version:</strong> "${conflict.serverText.substring(0, 50)}..."</div>
+                                <div><strong>Local version:</strong> "${conflict.localText.substring(0, 50)}..."</div>
+                            </div>
+                        `;
+                        conflictDetails.innerHTML += conflictHtml;
                     });
                     
-                    // Update UI and storage
-                    saveQuotesToLocalStorage();
-                    populateCategories();
-                    
-                    // Update sync status
-                    lastSyncTime = new Date();
-                    lastSync.textContent = lastSyncTime.toLocaleTimeString();
-                    conflictsResolvedSpan.textContent = conflictsResolved;
-                    syncStatus.textContent = 'Synchronized';
-                    syncStatus.className = 'status-value status-success';
-                    
-                    addToSyncLog(`Sync completed at ${lastSyncTime.toLocaleTimeString()}`);
-                    
-                    // Show conflict notification if any
-                    if (conflicts.length > 0) {
-                        conflictNotification.style.display = 'block';
-                        conflictDetails.innerHTML = '';
-                        
-                        conflicts.forEach(conflict => {
-                            const conflictHtml = `
-                                <div class="conflict-quote">
-                                    <div><strong>Quote ID:</strong> ${conflict.id}</div>
-                                    <div><strong>Server version:</strong> "${conflict.serverText.substring(0, 50)}..."</div>
-                                    <div><strong>Local version:</strong> "${conflict.localText.substring(0, 50)}..."</div>
-                                </div>
-                            `;
-                            conflictDetails.innerHTML += conflictHtml;
-                        });
-                        
-                        addToSyncLog(`Resolved ${conflicts.length} conflicts during sync`);
-                    }
-                    
-                } catch (error) {
-                    syncStatus.textContent = 'Sync Failed';
-                    syncStatus.className = 'status-value status-error';
-                    addToSyncLog(`Sync failed: ${error.message}`);
+                    addToSyncLog(`Resolved ${conflicts.length} conflicts during sync`);
                 }
-            }, 1500); // Simulated network delay
+                
+            } catch (error) {
+                syncStatus.textContent = 'Sync Failed';
+                syncStatus.className = 'status-value status-error';
+                addToSyncLog(`Sync failed: ${error.message}`);
+            }
         }
         
         // Add entry to sync log
