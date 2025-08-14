@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced Quote Generator with Category Filtering</title>
+    <title>Enhanced Quote Generator</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -21,6 +21,8 @@
             --dark: #212529;
             --success: #4cc9f0;
             --warning: #f72585;
+            --card-bg: rgba(255, 255, 255, 0.1);
+            --header-bg: rgba(0, 0, 0, 0.3);
         }
         
         body {
@@ -41,7 +43,7 @@
             text-align: center;
             margin-bottom: 30px;
             padding: 30px;
-            background: rgba(0, 0, 0, 0.3);
+            background: var(--header-bg);
             border-radius: 15px;
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
             animation: fadeIn 1s ease-out;
@@ -77,8 +79,8 @@
             }
         }
         
-        .quote-section {
-            background: rgba(0, 0, 0, 0.4);
+        .card {
+            background: var(--card-bg);
             border-radius: 15px;
             padding: 30px;
             margin-bottom: 30px;
@@ -109,7 +111,7 @@
             font-weight: 500;
         }
         
-        select {
+        select, button.filter-btn {
             padding: 10px 15px;
             border-radius: 8px;
             border: 2px solid var(--accent);
@@ -117,6 +119,18 @@
             font-size: 1rem;
             min-width: 200px;
             cursor: pointer;
+        }
+        
+        button.filter-btn {
+            background: linear-gradient(to right, #1d976c, #93f9b9);
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        button.filter-btn.active {
+            background: linear-gradient(to right, #ff416c, #ff4b2b);
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.5);
         }
         
         #quoteDisplay {
@@ -130,6 +144,18 @@
             background: rgba(0, 0, 0, 0.2);
             border-radius: 15px;
             transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #quoteDisplay::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(to right, #ff416c, #ff4b2b, #1d976c, #93f9b9);
         }
         
         blockquote {
@@ -141,6 +167,7 @@
             font-weight: 500;
             max-width: 800px;
             text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+            z-index: 1;
         }
         
         blockquote::before, blockquote::after {
@@ -149,6 +176,7 @@
             position: absolute;
             opacity: 0.3;
             line-height: 1;
+            z-index: -1;
         }
         
         blockquote::before {
@@ -219,7 +247,7 @@
         }
         
         .form-container {
-            background: rgba(0, 0, 0, 0.4);
+            background: var(--card-bg);
             border-radius: 15px;
             padding: 30px;
             margin-bottom: 30px;
@@ -252,7 +280,7 @@
         }
         
         .sidebar {
-            background: rgba(0, 0, 0, 0.4);
+            background: var(--card-bg);
             border-radius: 15px;
             padding: 30px;
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
@@ -313,7 +341,7 @@
             padding: 30px;
             font-size: 1rem;
             opacity: 0.9;
-            background: rgba(0, 0, 0, 0.3);
+            background: var(--header-bg);
             border-radius: 15px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             animation: fadeIn 1s ease-out;
@@ -346,6 +374,14 @@
             border-radius: 50px;
             font-size: 1.1rem;
             font-weight: 500;
+        }
+        
+        .category-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
         }
         
         @keyframes fadeIn {
@@ -391,19 +427,18 @@
 <body>
     <div class="container">
         <header>
-            <h1><i class="fas fa-quote-left"></i> Enhanced Quote Generator</h1>
-            <p class="subtitle">Create, store, and filter your favorite quotes by category. Your personalized quote library with powerful filtering capabilities.</p>
+            <h1><i class="fas fa-quote-left"></i> Quote Generator</h1>
+            <p class="subtitle">Discover, create, and filter inspirational quotes. Your personal quote library with powerful category filtering.</p>
         </header>
         
         <div class="main-content">
             <div class="left-column">
-                <section class="quote-section">
+                <section class="card">
                     <div class="filter-section">
                         <div class="filter-group">
                             <label for="categoryFilter"><i class="fas fa-filter"></i> Filter by Category:</label>
                             <select id="categoryFilter">
                                 <option value="all">All Categories</option>
-                                <!-- Categories will be dynamically populated -->
                             </select>
                         </div>
                         <div class="quote-count">
@@ -421,9 +456,13 @@
                         <button id="addQuoteBtn"><i class="fas fa-plus-circle"></i> Add New Quote</button>
                     </div>
                     
+                    <div class="category-buttons" id="quickCategoryFilters">
+                        <!-- Quick category filters will appear here -->
+                    </div>
+                    
                     <div class="storage-actions">
-                        <button id="exportBtn"><i class="fas fa-file-export"></i> Export Quotes (JSON)</button>
-                        <button id="clearStorageBtn"><i class="fas fa-trash-alt"></i> Clear All Quotes</button>
+                        <button id="exportBtn"><i class="fas fa-file-export"></i> Export Quotes</button>
+                        <button id="clearStorageBtn"><i class="fas fa-trash-alt"></i> Clear All</button>
                     </div>
                 </section>
                 
@@ -447,7 +486,7 @@
                 
                 <section class="import-section">
                     <h2><i class="fas fa-file-import"></i> Import Quotes</h2>
-                    <p>Upload a JSON file containing quotes to add them to your collection</p>
+                    <p>Upload a JSON file to add quotes to your collection</p>
                     <div class="form-group">
                         <input type="file" id="importFile" accept=".json">
                     </div>
@@ -459,21 +498,21 @@
                     <div class="storage-box">
                         <h3><i class="fas fa-database"></i> Local Storage</h3>
                         <div id="localStorageContent" class="storage-content">
-                            <!-- Local storage content will be displayed here -->
+                            No quotes in local storage
                         </div>
                     </div>
                     
                     <div class="storage-box">
                         <h3><i class="fas fa-history"></i> Session Storage</h3>
                         <div id="sessionStorageContent" class="storage-content">
-                            <!-- Session storage content will be displayed here -->
+                            No recent quote in session storage
                         </div>
                     </div>
                     
                     <div class="storage-box">
-                        <h3><i class="fas fa-info-circle"></i> Category Information</h3>
+                        <h3><i class="fas fa-tags"></i> Categories</h3>
                         <div id="categoryInfo" class="storage-content">
-                            <!-- Category information will be displayed here -->
+                            No categories available
                         </div>
                     </div>
                 </div>
@@ -482,7 +521,7 @@
         
         <footer>
             <p>Quotes are persisted across sessions using localStorage. Your last viewed quote is stored in sessionStorage.</p>
-            <p>Filtering preferences are saved and restored on page load. Current filter: <span id="currentFilter" class="highlight">All Categories</span></p>
+            <p>Current filter: <span id="currentFilter" class="highlight">All Categories</span></p>
         </footer>
     </div>
 

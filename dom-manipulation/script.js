@@ -1,6 +1,6 @@
         // Quote array with initial data
         let quotes = [];
-        let currentFilter = 'all';
+        let selectedCategory = 'all';
         
         // DOM elements
         const quoteDisplay = document.getElementById('quoteDisplay');
@@ -19,6 +19,7 @@
         const totalQuoteCount = document.getElementById('totalQuoteCount');
         const filteredCount = document.getElementById('filteredCount');
         const currentFilterSpan = document.getElementById('currentFilter');
+        const quickCategoryFilters = document.getElementById('quickCategoryFilters');
         
         // Initialize the application
         document.addEventListener('DOMContentLoaded', () => {
@@ -51,9 +52,9 @@
             // Load filter preference
             const savedFilter = localStorage.getItem('quoteFilter');
             if (savedFilter) {
-                currentFilter = savedFilter;
-                categoryFilter.value = currentFilter;
-                currentFilterSpan.textContent = currentFilter === 'all' ? 'All Categories' : currentFilter;
+                selectedCategory = savedFilter;
+                categoryFilter.value = selectedCategory;
+                currentFilterSpan.textContent = selectedCategory === 'all' ? 'All Categories' : selectedCategory;
             }
         }
         
@@ -87,20 +88,44 @@
                 categoryFilter.remove(1);
             }
             
+            // Clear quick filter buttons
+            quickCategoryFilters.innerHTML = '';
+            
+            // Create "All" quick filter button
+            const allButton = document.createElement('button');
+            allButton.className = `filter-btn ${selectedCategory === 'all' ? 'active' : ''}`;
+            allButton.innerHTML = '<i class="fas fa-layer-group"></i> All';
+            allButton.addEventListener('click', () => {
+                categoryFilter.value = 'all';
+                filterQuotes();
+            });
+            quickCategoryFilters.appendChild(allButton);
+            
             // Extract unique categories
             const categories = [...new Set(quotes.map(quote => quote.category))];
             categories.sort();
             
-            // Add options
+            // Add options to dropdown and create quick filter buttons
             categories.forEach(category => {
+                // Add to dropdown
                 const option = document.createElement('option');
                 option.value = category;
                 option.textContent = category;
                 categoryFilter.appendChild(option);
+                
+                // Create quick filter button
+                const button = document.createElement('button');
+                button.className = `filter-btn ${selectedCategory === category ? 'active' : ''}`;
+                button.innerHTML = `<i class="fas fa-tag"></i> ${category}`;
+                button.addEventListener('click', () => {
+                    categoryFilter.value = category;
+                    filterQuotes();
+                });
+                quickCategoryFilters.appendChild(button);
             });
             
-            // Set the current filter
-            categoryFilter.value = currentFilter;
+            // Set the selected category
+            categoryFilter.value = selectedCategory;
             
             // Update category info
             updateCategoryInfo();
@@ -108,15 +133,25 @@
         
         // Filter quotes based on selected category
         function filterQuotes() {
-            currentFilter = categoryFilter.value;
-            localStorage.setItem('quoteFilter', currentFilter);
-            currentFilterSpan.textContent = currentFilter === 'all' ? 'All Categories' : currentFilter;
+            selectedCategory = categoryFilter.value;
+            localStorage.setItem('quoteFilter', selectedCategory);
+            currentFilterSpan.textContent = selectedCategory === 'all' ? 'All Categories' : selectedCategory;
             
-            // Update filtered count display
-            if (currentFilter === 'all') {
+            // Update active state for quick filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            if (selectedCategory === 'all') {
+                document.querySelector('.filter-btn:first-child').classList.add('active');
                 filteredCount.textContent = '';
             } else {
-                const count = quotes.filter(q => q.category === currentFilter).length;
+                const activeButton = [...document.querySelectorAll('.filter-btn')].find(
+                    btn => btn.textContent.includes(selectedCategory)
+                );
+                if (activeButton) activeButton.classList.add('active');
+                
+                const count = quotes.filter(q => q.category === selectedCategory).length;
                 filteredCount.innerHTML = ` | Showing: <span class="highlight">${count}</span>`;
             }
             
@@ -133,13 +168,13 @@
             let filteredQuotes = quotes;
             
             // Apply category filter
-            if (currentFilter !== 'all') {
-                filteredQuotes = quotes.filter(quote => quote.category === currentFilter);
+            if (selectedCategory !== 'all') {
+                filteredQuotes = quotes.filter(quote => quote.category === selectedCategory);
                 
                 // If no quotes in category, fallback to all quotes
                 if (filteredQuotes.length === 0) {
                     filteredQuotes = quotes;
-                    quoteDisplay.innerHTML = `<p class="no-quotes">No quotes in category "${currentFilter}". Showing all quotes.</p>`;
+                    quoteDisplay.innerHTML = `<p class="no-quotes">No quotes in category "${selectedCategory}". Showing all quotes.</p>`;
                     return;
                 }
             }
@@ -295,7 +330,7 @@
                 localStorage.removeItem('quotes');
                 localStorage.removeItem('quoteFilter');
                 sessionStorage.removeItem('lastQuote');
-                currentFilter = 'all';
+                selectedCategory = 'all';
                 categoryFilter.value = 'all';
                 currentFilterSpan.textContent = 'All Categories';
                 quoteDisplay.innerHTML = '<p class="no-quotes">All quotes have been cleared.</p>';
@@ -358,8 +393,8 @@
             totalQuoteCount.textContent = quotes.length;
             
             // Update filtered count if a filter is active
-            if (currentFilter !== 'all') {
-                const count = quotes.filter(q => q.category === currentFilter).length;
+            if (selectedCategory !== 'all') {
+                const count = quotes.filter(q => q.category === selectedCategory).length;
                 filteredCount.innerHTML = ` | Showing: <span class="highlight">${count}</span>`;
             } else {
                 filteredCount.textContent = '';
