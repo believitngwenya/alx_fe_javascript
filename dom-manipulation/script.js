@@ -6,7 +6,7 @@ let quotes = [
 
 document.addEventListener('DOMContentLoaded', () => {
     const quoteDisplay = document.getElementById('quoteDisplay');
-    const randomQuoteBtn = document.getElementById('randomQuoteBtn');
+    const newQuoteBtn = document.getElementById('newQuote');
     const addQuoteBtn = document.getElementById('addQuoteBtn');
     const formContainer = document.getElementById('formContainer');
 
